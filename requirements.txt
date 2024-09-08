@@ -1,12 +1,9 @@
 anyio==4.4.0
-certifi==2024.8.30
-charset-normalizer==3.3.2
 convert_numbers==0.4
 easyocr==1.7.1
 fastapi==0.112.2
 idna==3.8
 imageio==2.35.1
-lazy_loader==0.4
 numpy==1.26.4
 opencv-python-headless==4.10.0.84
 pydantic==2.8.2
@@ -14,7 +11,6 @@ python-multipart==0.0.9
 requests==2.32.3
 torch==2.3.1
 torchvision==0.18.1
-typing_extensions==4.12.2
 ultralytics==8.2.87
 urllib3==2.2.2
 uvicorn==0.30.6
