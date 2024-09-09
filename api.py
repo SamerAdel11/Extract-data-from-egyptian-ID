@@ -116,6 +116,7 @@ def clean_ocr_output(ocr_output):
     if all(char.isdigit() for char in ocr_output):
         print("text is digit",ocr_output)
         if len(ocr_output)<13:
+            print("less than 13")
             return ocr_output
         elif not ocr_output.startswith(('٢','٣')) and len(ocr_output)>14:
 
@@ -125,37 +126,35 @@ def clean_ocr_output(ocr_output):
             print("Last char trimmed")
             return clean_ocr_output(ocr_output[:len(ocr_output)-1])
         else:
-            print("less than 13")
             return ocr_output
     else:
         print("text is string")
         return replace_punctuation(ocr_output)
 
-def split_id(image_path, detector, output_folder, exclude_labels=['face','Add1','Add2']):
+def split_id(image, detector, exclude_labels=['face','Add1','Add2']):
     if exclude_labels is None:
         exclude_labels = {'Face'}
 
     # Load the image
-    image = cv2.imread(image_path)
-
+    # image = cv2.imread(image_path)
+    print(image.shape)
     # Run inference
-    results = detector.predict(image_path, conf=0.25, imgsz=640)
-
+    results = detector.predict(image, conf=0.25, imgsz=640)
     # Access the first result
     result = results[0]
+    # print("results is ",result)
 
     # Get bounding boxes, confidence scores, and class labels
     boxes = result.boxes.xyxy.cpu().numpy()  # Bounding boxes
     class_ids = result.boxes.cls.cpu().numpy()  # Class IDs
 
     # Create the output folder if it doesn't exist
-    os.makedirs(output_folder, exist_ok=True)
-
+    images_dict=[]
     # Crop and save each detected object, excluding specified labels
     for i, (box, class_id) in enumerate(zip(boxes, class_ids)):
         # Get the label name
         label = result.names[int(class_id)]
-
+        print(label)
         # Skip if the label is in the exclude list
         if label in exclude_labels:
             continue
@@ -165,22 +164,25 @@ def split_id(image_path, detector, output_folder, exclude_labels=['face','Add1',
 
         # Crop the image around the bounding box
         cropped_image = image[ymin:ymax, xmin:xmax]
-
+        image_dict={"image":cropped_image,
+        "label":label}
+        images_dict.append(image_dict)
         # Create a filename for the cropped image
-        crop_filename = f'{label}.jpg'  # Same name for each label
-        crop_path = os.path.join(output_folder, crop_filename)
-
+        # crop_filename = f'{label}.jpg'  # Same name for each label
+        # crop_path = os.path.join(output_folder, crop_filename)
+    return images_dict
         # Save the cropped image, overriding if it already exists
-        cv2.imwrite(crop_path, cropped_image)
+        # cv2.imwrite(crop_path, cropped_image)
 
 detector = YOLO('best555.pt')
 rotation_model = YOLO("bestAA.pt")
 
-output_folder = r'output_images'
+# output_folder = r'output_images'
 
-@app.get("/extract_id/")
+@app.post("/extract_id/")
 async def create_upload_file(file: UploadFile = File(...)):
     # Read the content of the file
+    start_time=datetime.now()
     contents = await file.read()
     np_arr = np.frombuffer(contents, np.uint8)
     image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
@@ -190,24 +192,29 @@ async def create_upload_file(file: UploadFile = File(...)):
     diff=cropping_end-cropping_start
     image = cv2.resize(image,(600,400),interpolation=cv2.INTER_LANCZOS4)
     image = cv2.fastNlMeansDenoising(image, h=10, templateWindowSize=12, searchWindowSize=21)
-    cv2.imwrite('recieved.jpeg',image)
     split_start=datetime.now()
-    split_id('recieved.jpeg',detector,output_folder)
+    images_dict=split_id(cv2.cvtColor(image,cv2.COLOR_GRAY2BGR),detector)
     split_end=datetime.now()
 
     extracted_text={}
-    for filename in os.listdir(output_folder):
+    for image in images_dict:
         extract_start=datetime.now()
-        if filename == 'Id.jpg':
-            ocr_result=reader.recognize(f"{output_folder}/{filename}",allowlist='٠١٢٣٤٥٦٧٨٩')
+        if image['label'] == 'Id':
+            ocr_result=reader.recognize(image['image'],allowlist='٠١٢٣٤٥٦٧٨٩')
         else:
-            ocr_result=reader.recognize(f"{output_folder}/{filename}")
+            ocr_result=reader.recognize(image['image'])
         extract_end=datetime.now()
         result_easy_ocr = sorted(ocr_result, key=lambda x: x[0][1])
         extracted_id=clean_ocr_output(''.join(l[1] for l in result_easy_ocr))
-        file=filename.split('.')[0]
-        extracted_text[file]=extracted_id
-        extracted_text[f'{file}_time']=extract_end-extract_start
+        label=image['label']
+        extracted_text[label]=extracted_id
+        extracted_text[f'{label}_time']=extract_end-extract_start
     extracted_text['cropping_time']=diff
     extracted_text['splitting_time']=split_end-split_start
+    end_time=datetime.now()
+    extracted_text['total_time']=end_time-start_time
     return extracted_text
+
+@app.post("/")
+def index(file: UploadFile = File(...)):
+    return {"Message":"Hello"}
