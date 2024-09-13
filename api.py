@@ -174,8 +174,8 @@ def split_id(image, detector, exclude_labels=['face','Add1','Add2']):
         # Save the cropped image, overriding if it already exists
         # cv2.imwrite(crop_path, cropped_image)
 
-detector = YOLO('best555.pt')
-rotation_model = YOLO("bestAA.pt")
+detector = YOLO('split_image.pt')
+rotation_model = YOLO("crop_and_rotate.pt")
 
 # output_folder = r'output_images'
 
@@ -214,7 +214,206 @@ async def create_upload_file(file: UploadFile = File(...)):
     end_time=datetime.now()
     extracted_text['total_time']=end_time-start_time
     return extracted_text
+@app.get("/upload", response_class=HTMLResponse)
+async def upload_page():
+    # HTML page that allows users to upload an image
+    html_content = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Upload Image</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                background-color: #f4f4f4;
+            }
+            .container {
+                text-align: center;
+                background-color: white;
+                padding: 20px;
+                border-radius: 10px;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            }
+            h1 {
+                color: #333;
+            }
+            p {
+                color: #666;
+            }
+            input[type="file"] {
+                margin-top: 20px;
+            }
+            .button {
+                padding: 10px 20px;
+                background-color: #007bff;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                margin-top: 20px;
+            }
+            .button:hover {
+                background-color: #0056b3;
+            }
+            pre {
+                text-align: left;
+                background-color: #f4f4f4;
+                padding: 10px;
+                border-radius: 5px;
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                border: 1px solid #ddd;
+            }
+            .json-key {
+                color: #d14;
+            }
+            .json-value {
+                color: #1a1aa6;
+            }
+            .json-string {
+                color: #1a1a1a;
+            }
+            .json-label {
+                font-weight: bold;
+                margin-top: 20px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Upload an Image</h1>
+            <form id="uploadForm" enctype="multipart/form-data">
+                <input type="file" id="fileInput" name="file" accept="image/*">
+                <button type="submit" class="button">Upload</button>
+            </form>
+            <div id="result">
+                <!-- Result will be displayed here -->
+            </div>
+        </div>
+        <script>
+            const form = document.getElementById('uploadForm');
+            const fileInput = document.getElementById('fileInput');
+            const result = document.getElementById('result');
 
-@app.post("/")
-def index(file: UploadFile = File(...)):
-    return {"Message":"Hello"}
+            // Function to format JSON output in a good way
+            function syntaxHighlight(json) {
+                if (typeof json != 'string') {
+                    json = JSON.stringify(json, undefined, 2);
+                }
+                json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\\s*:)?|\\b(true|false|null)\\b|-?\\d+(?:\\.\\d*)?(?:[eE][+\\-]?\\d+)?)/g, function (match) {
+                    let cls = 'json-value';
+                    if (/^"/.test(match)) {
+                        if (/:$/.test(match)) {
+                            cls = 'json-key';
+                        } else {
+                            cls = 'json-string';
+                        }
+                    } else if (/true|false/.test(match)) {
+                        cls = 'json-value';
+                    } else if (/null/.test(match)) {
+                        cls = 'json-value';
+                    }
+                    return '<span class="' + cls + '">' + match + '</span>';
+                });
+            }
+
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const file = fileInput.files[0];
+                if (!file) {
+                    alert('Please select a file');
+                    return;
+                }
+                const formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    const response = await fetch('/extract_id/', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const resultData = await response.json();
+
+                    // Display the result in a formatted way
+                    result.innerHTML = `
+                        <h2 class="json-label">OCR Extraction Result</h2>
+                        <pre>${syntaxHighlight(resultData)}</pre>
+                    `;
+                } catch (error) {
+                    result.innerHTML = 'Error: ' + error.message;
+                }
+            });
+        </script>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content)
+
+@app.get("/", response_class=HTMLResponse)
+async def landing_page():
+    # Updated HTML page for the landing page
+    html_content = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>FastAPI Landing Page</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                background-color: #f4f4f4;
+            }
+            .container {
+                text-align: center;
+                background-color: white;
+                padding: 20px;
+                border-radius: 10px;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            }
+            h1 {
+                color: #333;
+            }
+            p {
+                color: #666;
+            }
+            .button {
+                padding: 10px 20px;
+                background-color: #007bff;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+            }
+            .button:hover {
+                background-color: #0056b3;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Welcome to FastAPI!</h1>
+            <p>Your FastAPI application is running smoothly.</p>
+            <a href="/upload">
+                <button class="button">Upload Image</button>
+            </a>
+        </div>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content)
