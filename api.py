@@ -218,143 +218,195 @@ async def create_upload_file(file: UploadFile = File(...)):
 async def upload_page():
     # HTML page that allows users to upload an image
     html_content = """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Upload Image</title>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                margin: 0;
-                padding: 0;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 100vh;
-                background-color: #f4f4f4;
-            }
-            .container {
-                text-align: center;
-                background-color: white;
-                padding: 20px;
-                border-radius: 10px;
-                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            }
-            h1 {
-                color: #333;
-            }
-            p {
-                color: #666;
-            }
-            input[type="file"] {
-                margin-top: 20px;
-            }
-            .button {
-                padding: 10px 20px;
-                background-color: #007bff;
-                color: white;
-                border: none;
-                border-radius: 5px;
-                cursor: pointer;
-                margin-top: 20px;
-            }
-            .button:hover {
-                background-color: #0056b3;
-            }
-            pre {
-                text-align: left;
-                background-color: #f4f4f4;
-                padding: 10px;
-                border-radius: 5px;
-                white-space: pre-wrap;
-                word-wrap: break-word;
-                border: 1px solid #ddd;
-            }
-            .json-key {
-                color: #d14;
-            }
-            .json-value {
-                color: #1a1aa6;
-            }
-            .json-string {
-                color: #1a1a1a;
-            }
-            .json-label {
-                font-weight: bold;
-                margin-top: 20px;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>Upload an Image</h1>
-            <form id="uploadForm" enctype="multipart/form-data">
-                <input type="file" id="fileInput" name="file" accept="image/*">
-                <button type="submit" class="button">Upload</button>
-            </form>
-            <div id="result">
-                <!-- Result will be displayed here -->
-            </div>
-        </div>
-        <script>
-            const form = document.getElementById('uploadForm');
-            const fileInput = document.getElementById('fileInput');
-            const result = document.getElementById('result');
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Image</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f4;
+        }
+        .container {
+            width: 500px; /* Increased width */
+            text-align: center;
+            background-color: white;
+            padding: 40px; /* Increased padding */
+            border-radius: 15px; /* Increased border radius */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); /* Slightly darker shadow */
+        }
+        h1 {
+            font-size: 28px; /* Increased font size for the title */
+            color: #333;
+        }
+        input[type="file"] {
+            margin-top: 20px;
+            font-size: 18px; /* Increased font size for the file input */
+        }
+        .button {
+            padding: 15px 30px; /* Increased padding */
+            background-color: #007bff;
+            font-size: 18px; /* Increased font size */
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+            display: none; /* Initially hidden */
+        }
+        .button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .button:hover:enabled {
+            background-color: #0056b3;
+        }
+        #result {
+            margin-top: 30px; /* Increased margin */
+            text-align: left;
+            font-size: 16px; /* Increased font size for the result */
+        }
+        .row {
+            display: flex;
+            flex-direction: column; /* Stack items vertically */
+            align-items: flex-start; /* Align items to the start */
+            margin-bottom: 20px; /* Space between rows */
+        }
+        .title {
+            font-weight: bold;
+            color: #333;
+            font-size: 18px; /* Font size for titles */
+            margin-bottom: 5px; /* Space below title */
+        }
+        .value {
+            color: #555;
+            font-size: 16px; /* Font size for values */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Upload an Image</h1>
+        <form id="uploadForm" enctype="multipart/form-data">
+            <input type="file" id="fileInput" name="file" accept="image/*">
+            <button type="submit" class="button" id="submitButton">Extract Data</button>
+        </form>
+        <div id="result"></div>
+    </div>
 
-            // Function to format JSON output in a good way
-            function syntaxHighlight(json) {
-                if (typeof json != 'string') {
-                    json = JSON.stringify(json, undefined, 2);
-                }
-                json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\\s*:)?|\\b(true|false|null)\\b|-?\\d+(?:\\.\\d*)?(?:[eE][+\\-]?\\d+)?)/g, function (match) {
-                    let cls = 'json-value';
-                    if (/^"/.test(match)) {
-                        if (/:$/.test(match)) {
-                            cls = 'json-key';
-                        } else {
-                            cls = 'json-string';
-                        }
-                    } else if (/true|false/.test(match)) {
-                        cls = 'json-value';
-                    } else if (/null/.test(match)) {
-                        cls = 'json-value';
-                    }
-                    return '<span class="' + cls + '">' + match + '</span>';
+    <script>
+        const form = document.getElementById('uploadForm');
+        const fileInput = document.getElementById('fileInput');
+        const submitButton = document.getElementById('submitButton');
+        const result = document.getElementById('result');
+
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                submitButton.style.display = 'inline-block';
+                result.innerHTML = '';
+            } else {
+                submitButton.style.display = 'none';
+            }
+        });
+
+        function displayAsTitleAndValue(data) {
+            result.innerHTML = '';
+
+            // Create container for FN and LN
+            const nameContainer = document.createElement('div');
+            
+            // Create First Name section
+            const fnTitle = document.createElement('div');
+            fnTitle.classList.add('title');
+            fnTitle.textContent = 'First Name:';
+            const fnValue = document.createElement('div');
+            fnValue.classList.add('value');
+            fnValue.textContent = data['FN'] || 'N/A';
+            const fnSection = document.createElement('div');
+            fnSection.appendChild(fnTitle);
+            fnSection.appendChild(fnValue);
+            
+            // Create Last Name section
+            const lnTitle = document.createElement('div');
+            lnTitle.classList.add('title');
+            lnTitle.textContent = 'Last Name:';
+            const lnValue = document.createElement('div');
+            lnValue.classList.add('value');
+            lnValue.textContent = data['LN'] || 'N/A';
+            const lnSection = document.createElement('div');
+            lnSection.appendChild(lnTitle);
+            lnSection.appendChild(lnValue);
+
+            // Append sections to nameContainer
+            nameContainer.appendChild(fnSection);
+            nameContainer.appendChild(lnSection);
+
+            // Append nameContainer to the result container
+            result.appendChild(nameContainer);
+
+            // Add Id underneath
+            const idTitle = document.createElement('div');
+            idTitle.classList.add('title');
+            idTitle.textContent = 'Id:';
+            const idValue = document.createElement('div');
+            idValue.classList.add('value');
+            idValue.textContent = data['Id'] || 'N/A';
+            result.appendChild(idTitle);
+            result.appendChild(idValue);
+
+            // Add total_time last
+            const timeTitle = document.createElement('div');
+            timeTitle.classList.add('title');
+            timeTitle.textContent = 'total_time:';
+            const timeValue = document.createElement('div');
+            timeValue.classList.add('value');
+            timeValue.textContent = data['total_time'] || 'N/A';
+            result.appendChild(timeTitle);
+            result.appendChild(timeValue);
+        }
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Please select a file');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            submitButton.disabled = true;
+            submitButton.textContent = 'Please wait...';
+
+            try {
+                const response = await fetch('/extract_id/', {
+                    method: 'POST',
+                    body: formData
                 });
+                const resultData = await response.json();
+
+                displayAsTitleAndValue(resultData);
+
+            } catch (error) {
+                result.innerHTML = 'Error: ' + error.message;
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Extract Data';
             }
+        });
+    </script>
+</body>
+</html>
 
-            form.addEventListener('submit', async (event) => {
-                event.preventDefault();
-                const file = fileInput.files[0];
-                if (!file) {
-                    alert('Please select a file');
-                    return;
-                }
-                const formData = new FormData();
-                formData.append('file', file);
-
-                try {
-                    const response = await fetch('/extract_id/', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    const resultData = await response.json();
-
-                    // Display the result in a formatted way
-                    result.innerHTML = `
-                        <h2 class="json-label">OCR Extraction Result</h2>
-                        <pre>${syntaxHighlight(resultData)}</pre>
-                    `;
-                } catch (error) {
-                    result.innerHTML = 'Error: ' + error.message;
-                }
-            });
-        </script>
-    </body>
-    </html>
     """
     return HTMLResponse(content=html_content)
 
