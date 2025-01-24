@@ -77,3 +77,6 @@ input[type="file"] {
     color: #555;
     font-size: 16px;
 }
+p{
+    color: red;
+}

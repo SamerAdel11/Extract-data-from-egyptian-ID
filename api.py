@@ -14,7 +14,7 @@ from datetime import datetime
 from utils import utils
 
 reader = Reader(['ar'])
-app=FastAPI()
+app = FastAPI()
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -34,33 +34,36 @@ async def create_upload_file(file: UploadFile = File(...)):
     image = await read_file(file)
 
     # Step 2: Crop and extract features
-    image, cropping_time = crop_and_extract_features(image, rotation_model)
+    image = utils.extract_features(image, rotation_model)
 
     # Step 3: Preprocess image
     image = utils.preprocess_image(image)
 
     # Step 4: Split ID sections
-    images_dict, splitting_time = split_id_cards(image, detector)
+    images_dict = utils.split_id_into_segments(
+        cv2.cvtColor(image, cv2.COLOR_GRAY2BGR), detector)
 
     # Step 5: Extract text
-    extracted_text = utils.extract_text_from_images(images_dict, reader)
+    extracted_text = utils.ocr(images_dict, reader)
 
     # Step 6: Add timing information
-    extracted_text['cropping_time'] = cropping_time
-    extracted_text['splitting_time'] = splitting_time
+    # extracted_text['cropping_time'] = cropping_time
+    # extracted_text['splitting_time'] = splitting_time
     extracted_text['total_time'] = datetime.now() - start_time
 
     return extracted_text
+
 
 @app.get("/upload", response_class=HTMLResponse)
 async def upload_page(request: Request):
     # HTML page that allows users to upload an image
     return templates.TemplateResponse("upload.html", {"request": request})
 
+
 @app.get("/", response_class=HTMLResponse)
 async def landing_page(request: Request):
     # Updated HTML page for the landing page
-    return templates.TemplateResponse("landing_page.html",{"request":request})
+    return templates.TemplateResponse("landing_page.html", {"request": request})
 
 
 async def read_file(file: UploadFile):
@@ -79,10 +82,12 @@ def crop_and_extract_features(image, rotation_model):
     cropping_time = end_time - start_time
     return processed_image, cropping_time
 
+
 def split_id_cards(image, detector):
     """Splits the ID card image into sections using a detector."""
     start_time = datetime.now()
-    images_dict = utils.split_id_into_segments(cv2.cvtColor(image, cv2.COLOR_GRAY2BGR), detector)
+    images_dict = utils.split_id_into_segments(
+        cv2.cvtColor(image, cv2.COLOR_GRAY2BGR), detector)
     end_time = datetime.now()
     splitting_time = end_time - start_time
     return images_dict, splitting_time
