@@ -13,7 +13,8 @@ The extracted components can be further processed for text recognition and data 
 ## 📂 Project Structure
 ```
 ├── api.py          # FastAPI application
-├── utils/        # Utility functions for processing
+├── models/         # YOLO models
+├── utils/          # Utility functions for processing
 ├── static/         # CSS, JavaScript, and other assets
 ├── templates/      # HTML templates for the frontend
 ├── requirements.txt # Required dependencies
