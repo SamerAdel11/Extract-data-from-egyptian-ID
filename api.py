@@ -10,6 +10,7 @@ import numpy as np
 from easyocr import Reader
 
 from datetime import datetime
+import os
 
 from utils import utils
 
@@ -21,16 +22,21 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # Setup templates
 templates = Jinja2Templates(directory="templates")
 
-# Load the models
-detector = YOLO('split_image.pt')
-rotation_model = YOLO("crop_and_rotate.pt")
+from functools import lru_cache
+
+@lru_cache(maxsize=1)  # Caches the model in memory
+def get_models():
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))  
+    detector = YOLO(os.path.join(BASE_DIR, 'models/split_image.pt'))
+    rotation_model = YOLO(os.path.join(BASE_DIR, "models/crop_and_rotate.pt"))
+    return detector, rotation_model
 
 
 @app.post("/extract_id")
 async def create_upload_file(file: UploadFile = File(...)):
     start_time = datetime.now()
-
-    # Step 1: Read file
+    detector,rotation_model=get_models()
+    # Step 1: Read file 
     image = await read_file(file)
 
     # Step 2: Crop and extract features
@@ -72,22 +78,3 @@ async def read_file(file: UploadFile):
     np_arr = np.frombuffer(contents, np.uint8)
     image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
     return image
-
-
-def crop_and_extract_features(image, rotation_model):
-    """Crops and extracts features from the image using a rotation model."""
-    start_time = datetime.now()
-    processed_image = utils.extract_features(image, rotation_model)
-    end_time = datetime.now()
-    cropping_time = end_time - start_time
-    return processed_image, cropping_time
-
-
-def split_id_cards(image, detector):
-    """Splits the ID card image into sections using a detector."""
-    start_time = datetime.now()
-    images_dict = utils.split_id_into_segments(
-        cv2.cvtColor(image, cv2.COLOR_GRAY2BGR), detector)
-    end_time = datetime.now()
-    splitting_time = end_time - start_time
-    return images_dict, splitting_time
