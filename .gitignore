@@ -2,3 +2,9 @@
 __pycache__/
 ./__pycache__
 modelss/
+crop_and_rotate.pt
+split_image.pt
+scripts
+api_old.py
+bad_images
+data - Copy.xlsx

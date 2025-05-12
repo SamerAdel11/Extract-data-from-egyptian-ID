@@ -2,6 +2,7 @@ import string
 import numpy as np
 import cv2
 from datetime import datetime
+from fastapi import HTTPException
 # =======================
 # Text Processing Utilities
 # =======================
@@ -20,6 +21,10 @@ def clean_text(text):
     text = text.strip(string.punctuation)
     return text.translate(translation_table)
 
+def convert_arabic_to_english_numbers(text):
+    print("The input is",text,'and it\'s type is', type(text))
+    translation_table = str.maketrans('٠١٢٣٤٥٦٧٨٩', '0123456789')
+    return text.translate(translation_table)
 
 def clean_id(extracted_id):
     """
@@ -31,7 +36,7 @@ def clean_id(extracted_id):
     """
     if len(extracted_id) < 14:
         print("Extracted ID is Incorrect")
-        return extracted_id
+        raise HTTPException(status_code=422,detail='Poor image quality, please Take another Image of your Egyptian Id')
     elif not extracted_id.startswith(('٢', '٣')) and len(extracted_id) > 14:
         return clean_ocr_output(extracted_id[1:])
     elif extracted_id.startswith(('٢', '٣')) and len(extracted_id) > 14:
@@ -79,7 +84,8 @@ def ocr(images_dict, reader):
 
         # The date might come with noise, so we remove that noise
         cleaned_output = clean_ocr_output(''.join(l[1] for l in result_easy_ocr))
-
+        if label=='Id':
+            cleaned_output=convert_arabic_to_english_numbers(cleaned_output)
         # Append the result and their time to the dictionary
         extracted_text[label] = cleaned_output
         # extracted_text[f'{label}_time'] = extract_end - extract_start

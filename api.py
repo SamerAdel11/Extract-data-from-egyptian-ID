@@ -1,9 +1,8 @@
 from fastapi import FastAPI, File, UploadFile
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.requests import Request
-
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.requests import Request
@@ -17,6 +16,9 @@ from datetime import datetime
 import os
 
 from utils import utils
+from PIL import Image
+import numpy as np
+
 
 reader = Reader(['ar'])
 app = FastAPI()
@@ -70,11 +72,44 @@ async def upload_page(request: Request):
     return templates.TemplateResponse("upload.html", {"request": request})
 
 
+@app.post('/split')
+async def split_image(image: UploadFile = File(...)):
+    detector, rotation_model=get_models()
+
+    image_name = os.path.splitext(image.filename)[0]
+    image = await read_file(image)
+    image = utils.extract_features(image, rotation_model)
+
+    # Process image
+    label_image_dict = utils.split_id_into_segments(
+        cv2.cvtColor(image, cv2.COLOR_GRAY2BGR), detector)
+    print(label_image_dict)
+    # Create a directory named after the original image
+    output_dir = f"./output/{image_name}"
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Save images with label names
+    for component in label_image_dict:
+        img=component['image']
+        label=component['label']
+        img_path = os.path.join(output_dir, f"{label}.jpg")
+
+        # Assume img is a NumPy array
+        img_pil = Image.fromarray(img)
+        img_pil.save(img_path)
+
+
+    return JSONResponse(content={"message": "Images saved",})
+    
+
 @app.get("/", response_class=HTMLResponse)
 async def landing_page(request: Request):
     # Updated HTML page for the landing page
     return templates.TemplateResponse("landing_page.html", {"request": request})
 
+@app.get("/login",response_class=HTMLResponse)
+async def log_in_page(request: Request):
+    return templates.TemplateResponse("")
 
 async def read_file(file: UploadFile):
     """Reads the uploaded file and converts it to an image."""
@@ -82,3 +117,4 @@ async def read_file(file: UploadFile):
     np_arr = np.frombuffer(contents, np.uint8)
     image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
     return image
+
