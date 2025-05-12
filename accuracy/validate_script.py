@@ -34,18 +34,13 @@ for filename in jpg_files:
         for key, value in response.items():
             print("value is", value)
             print(f"folder name is {filename.split('.')[0]}, filename is {key}.jpg")
-            # print("row is ", df.loc[
-            #     (df['folder'] == int(filename.split('.')[0])) & 
-            #     (df['filename'] == f'{key.strip()}.jpg'), 
 
-            # ])
             df.loc[
                 (df['folder'] == int(filename.split('.')[0])) & 
                 (df['filename'] == f'{key.strip()}.jpg'), 
                 'extracted_text_not_preproccessed'
             ] = value
 
-        # break
 # Try to save the Excel file to the intended location
 try:
     output_path = "api/accuracy/accuracy.xlsx"
